@@ -40,6 +40,12 @@ def say(msg):
     print(time.strftime("[%H:%M:%S] ") + msg, flush=True)
 
 
+def notice(title, msg, level="notice"):
+    """Shows up on the run page in GitHub (annotations), so a failure is readable without opening logs."""
+    msg = str(msg).replace("\n", " ").replace("\r", " ")[:900]
+    print(f"::{level} title={title}::{msg}", flush=True)
+
+
 def out(name, value):
     path = os.environ.get("GITHUB_OUTPUT")
     if path:
@@ -178,7 +184,13 @@ def do_scan(app):
     done.set()
     say(f"scan {app.job['state']} in {time.time() - t0:.0f}s" + (f": {app.job.get('error')}" if app.job.get("error") else ""))
     if app.job["state"] != "done":
+        notice("Scan failed", app.job.get("error") or app.job["state"], "error")
         return False
+    sc = app.store.load_scan(app.job["id"]) or {}
+    oc = ((sc.get("opps") or {}).get("counts") or {})
+    notice("Scan", f"done in {time.time() - t0:.0f}s. bar {sc.get('last_bar')}, universe {sc.get('universe_n')} "
+                   f"(usable {sc.get('usable_n')}), candidates {sum(len(x) for x in (sc.get('candidates') or {}).values())}, "
+                   f"selected {sc.get('selected')}, opportunities ready {oc.get('ready')} / watch {oc.get('watch')} / risky {oc.get('risky')}")
     prune_scans(app)
     try:
         app.market(force=True)
@@ -203,7 +215,10 @@ def do_watch(app, engine, force=False):
         say(f"market: {e}")
     app.refresh_live()
     app.refresh_opps()
-    say(f"checked {len(app.opp_quotes.get('quotes') or {})} opportunity quotes and {len(app.live.get('items') or [])} plans; state {state}")
+    msg = (f"checked {len(app.opp_quotes.get('quotes') or {})} opportunity quotes and {len(app.live.get('items') or [])} plans; "
+           f"market {state}" + (f"; quote error: {app.opp_quotes.get('error')}" if app.opp_quotes.get("error") else ""))
+    say(msg)
+    notice("Watch", msg, "warning" if app.opp_quotes.get("error") else "notice")
     return True
 
 
@@ -293,6 +308,8 @@ def main():
             say("some notifications were still pending at exit")
     for ch, stt in app.notifier.status.items():
         say(f"{ch}: last send {'ok' if stt['ok'] else 'FAILED ' + str(stt['error'])}")
+        if not stt["ok"]:
+            notice(f"{ch} failed", stt["error"], "warning")
     if changed or not had_state:
         save_state(key)
         out("save", "true")
