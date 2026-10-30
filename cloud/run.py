@@ -290,6 +290,23 @@ def main():
     had_state = restore_state(key)
     app, sd, engine = make_app(demo)
     changed = False
+    if mode == "status":   # report only: no notifications, nothing saved or published
+        meta = app.latest_scan_meta()
+        sc = app.store.load_scan(meta["id"]) if meta else None
+        if not sc:
+            notice("Status", "no scan saved yet", "warning")
+        else:
+            oc = ((sc.get("opps") or {}).get("counts") or {})
+            notice("Status", f"latest scan {sc['id']} (bar {sc.get('last_bar')}, took {sc.get('runtime_s')}s): universe "
+                             f"{sc.get('universe_n')} from {sc.get('universe_source')}, usable {sc.get('usable_n')}, candidates "
+                             f"{sum(len(x) for x in (sc.get('candidates') or {}).values())}, selected {len(sc.get('selected') or [])}, "
+                             f"opportunities {(sc.get('opps') or {}).get('total')}: ready {oc.get('ready')} / watch {oc.get('watch')} / "
+                             f"risky {oc.get('risky')}. alerts stored {len(app.store.load('alerts', []))}")
+            for line in (sc.get("log") or [])[-6:]:
+                notice("Scan log", line)
+        out("save", "false")
+        out("deploy", "false")
+        return
     try:
         if not had_state and app.store.settings().get("ntfy_topic"):
             app.notify("SwingDesk רץ עכשיו בענן, בלי המחשב בבית. סריקה מלאה כל ערב אחרי סגירת השוק, ובדיקת מחירים כל רבע שעה "

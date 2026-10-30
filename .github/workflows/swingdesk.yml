@@ -11,9 +11,9 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "scan = full scan, watch = price check"
+        description: "scan = full scan, watch = price check, status = report only"
         type: choice
-        options: [scan, watch]
+        options: [scan, watch, status]
         default: scan
 
 permissions:
