@@ -304,6 +304,22 @@ def main():
                              f"risky {oc.get('risky')}. alerts stored {len(app.store.load('alerts', []))}")
             for line in (sc.get("log") or [])[-6:]:
                 notice("Scan log", line)
+        st = app.store.settings()
+        if st.get("ntfy_topic"):   # what the ntfy server holds for the phone (cached ~12h): counts only
+            import urllib.request
+            import phone
+            try:
+                req = urllib.request.Request(f"{phone.ntfy_server(st.get('ntfy_server'))}/{st['ntfy_topic']}/json?poll=1&since=24h",
+                                             headers={"User-Agent": "SwingDesk"})
+                with urllib.request.urlopen(req, timeout=15, context=phone.tls_context()) as r:
+                    msgs = [json.loads(x) for x in r.read().decode("utf-8").splitlines() if x.strip()]
+                msgs = [m for m in msgs if m.get("event") == "message"]
+                notice("ntfy", f"{len(msgs)} messages on the phone channel in the last 24h"
+                               + (f", latest at {time.strftime('%Y-%m-%d %H:%M', time.localtime(msgs[-1]['time']))}" if msgs else ""))
+            except Exception as e:
+                notice("ntfy", f"could not read the channel: {type(e).__name__}: {e}", "warning")
+        else:
+            notice("ntfy", "NTFY_TOPIC secret is not set", "warning")
         out("save", "false")
         out("deploy", "false")
         return
