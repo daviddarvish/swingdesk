@@ -190,7 +190,7 @@ def do_scan(app):
     oc = ((sc.get("opps") or {}).get("counts") or {})
     notice("Scan", f"done in {time.time() - t0:.0f}s. bar {sc.get('last_bar')}, universe {sc.get('universe_n')} "
                    f"(usable {sc.get('usable_n')}), candidates {sum(len(x) for x in (sc.get('candidates') or {}).values())}, "
-                   f"selected {sc.get('selected')}, opportunities ready {oc.get('ready')} / watch {oc.get('watch')} / risky {oc.get('risky')}")
+                   f"selected {len(sc.get('selected') or [])}, opportunities ready {oc.get('ready')} / watch {oc.get('watch')} / risky {oc.get('risky')}")
     prune_scans(app)
     try:
         app.market(force=True)
