@@ -1,0 +1,96 @@
+# SwingDesk in the cloud: no computer needed.
+#   scan   every US trading evening after the close (21:41 UTC = 23:41 Israel time in winter)
+#   watch  every 15 minutes from the pre-market to the close: triggers, cancels, broken supports
+# Results go to the phone (ntfy) and to the encrypted dashboard on GitHub Pages.
+name: SwingDesk
+
+on:
+  schedule:
+    - cron: "41 21 * * 1-5"
+    - cron: "7,22,37,52 13-20 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "scan = full scan, watch = price check"
+        type: choice
+        options: [scan, watch]
+        default: scan
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+  actions: write
+
+concurrency:
+  group: swingdesk
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    env:
+      TZ: Asia/Jerusalem
+      PYTHONUNBUFFERED: "1"
+      MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || (github.event.schedule == '41 21 * * 1-5' && 'scan' || 'watch') }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-cloud.txt
+
+      - name: Install
+        run: pip install -q -r requirements-cloud.txt
+
+      - name: Restore state
+        run: |
+          if git fetch -q --depth=1 origin data 2>/dev/null; then
+            git show FETCH_HEAD:state.enc > state.enc || rm -f state.enc
+          fi
+
+      - name: Run (${{ env.MODE }})
+        id: run
+        env:
+          DASH_PASSWORD: ${{ secrets.DASH_PASSWORD }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          NTFY_SERVER: ${{ secrets.NTFY_SERVER }}
+          NTFY_TOKEN: ${{ secrets.NTFY_TOKEN }}
+          TG_TOKEN: ${{ secrets.TG_TOKEN }}
+          TG_CHAT: ${{ secrets.TG_CHAT }}
+          SETTINGS_JSON: ${{ secrets.SETTINGS_JSON }}
+        run: python cloud/run.py "$MODE"
+
+      - name: Save state
+        if: steps.run.outputs.save == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/data && cp state.enc /tmp/data/ && cd /tmp/data
+          git init -q -b data
+          git add state.enc
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "state $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data
+
+      - uses: actions/upload-pages-artifact@v5
+        if: steps.run.outputs.deploy == 'true'
+        with:
+          path: site
+
+      - id: deploy
+        if: steps.run.outputs.deploy == 'true'
+        uses: actions/deploy-pages@v5
+
+      # GitHub pauses schedules after 60 quiet days in public repositories; this keeps it on
+      - name: Keep the schedule on
+        if: env.MODE == 'scan'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/swingdesk.yml/enable" >/dev/null || true

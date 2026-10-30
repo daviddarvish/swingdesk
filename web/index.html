@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SwingDesk</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23152532'/%3E%3Cpath d='M5 22 L12 15 L17 19 L27 8' stroke='%23E066D2' stroke-width='3' fill='none'/%3E%3Ccircle cx='27' cy='8' r='2.5' fill='%2363CF86'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Hebrew:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 22 L12 15 L17 19 L27 8" stroke="var(--magenta)" stroke-width="3" fill="none"/><circle cx="27" cy="8" r="2.5" fill="var(--green)"/></svg>
+    <span>SwingDesk</span>
+  </div>
+  <nav id="nav" aria-label="מסכים">
+    <button data-view="opps" class="on">הזדמנויות</button>
+    <button data-view="scan">סריקה</button>
+    <button data-view="live">לייב</button>
+    <button data-view="stats">סטטיסטיקה</button>
+    <button data-view="positions">פוזיציות</button>
+    <button data-view="journal">יומן</button>
+    <button data-view="events">אירועים</button>
+    <button data-view="settings">הגדרות</button>
+  </nav>
+  <div class="topmeta" id="topmeta"></div>
+</header>
+<section class="annun" id="annun" aria-label="מצב השוק"></section>
+<main id="view"></main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="/lightweight-charts.js"></script>
+<script src="/app.js"></script>
+<script src="/opps.js"></script>
+</body>
+</html>
